@@ -1,0 +1,15 @@
+# Despliegue con la línea de comandos (opcional; también se puede pegar worker.js en el panel de Cloudflare).
+name = "monitor-webs-bot"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "monitor-webs"
+database_id = "fdfe151f-33e2-493a-aee1-6cd976206ad8"
+
+[observability]
+enabled = true

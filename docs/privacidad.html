@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacidad · Monitor webs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%2334c759'/%3E%3C/svg%3E">
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--muted:#6e6e73}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--text:#f5f5f7;--muted:#98989d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:40px 16px 56px}
+h1{font-size:28px;letter-spacing:-.02em;margin:0 0 4px}
+h2{font-size:18px;margin:28px 0 6px}
+.muted{color:var(--muted);font-size:14px}
+section{background:var(--card);border-radius:14px;padding:6px 20px 14px;margin-top:18px}
+a{color:#0a84ff}
+</style>
+</head>
+<body>
+<main>
+<h1>Privacidad del bot Monitor webs</h1>
+<p class="muted">Bot de Telegram <a href="https://t.me/monitorwebsgh_bot">@monitorwebsgh_bot</a> · actualizado el 7 de noviembre de 2026</p>
+
+<section>
+<h2>Qué guardamos</h2>
+<p>Solo lo necesario para avisarte: tu identificador de chat de Telegram, las direcciones de las webs que añades y el nombre que les pones, y el estado de cada web (si funciona, desde cuándo y el tiempo de respuesta de la última comprobación). No guardamos tu nombre, tu número de teléfono ni el texto de tus mensajes.</p>
+
+<h2>Para qué</h2>
+<p>Para comprobar tus webs cada 5 minutos y mandarte por Telegram un aviso cuando una se cae y cuando vuelve. Nada más: no hay publicidad, no hacemos perfiles y no vendemos ni compartimos tus datos con nadie.</p>
+
+<h2>Dónde</h2>
+<p>En una base de datos privada de Cloudflare (Cloudflare D1), desde donde funciona el bot. Los mensajes pasan por Telegram, con su propia <a href="https://telegram.org/privacy">política de privacidad</a>. Cada persona ve solo sus webs.</p>
+
+<h2>Cuánto tiempo y cómo borrarlo</h2>
+<p>Mientras uses el bot. Si quitas una web en «📋 Mis webs», se borra al momento; cuando nadie vigila ya una dirección, se borra también su estado. Para borrar todo lo tuyo, quita todas tus webs o escríbenos y lo borramos.</p>
+
+<h2>Las comprobaciones</h2>
+<p>Para saber si una web funciona, el bot visita su dirección como lo haría un navegador (se identifica como «MonitorWebsBot»). Solo vigila webs públicas con dominio; no entra en zonas privadas ni guarda el contenido de las páginas.</p>
+
+<h2>Contacto</h2>
+<p>Escríbenos abriendo una incidencia en el repositorio. El código del bot es público: <a href="https://github.com/wpdesigndev/monitor-webs">github.com/wpdesigndev/monitor-webs</a></p>
+</section>
+</main>
+</body>
+</html>

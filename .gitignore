@@ -1,0 +1,9 @@
+SMTP_PASS.txt
+*.secret
+.env
+.env.*
+.token
+bot/.token
+.webhook_secret
+.wrangler/
+bot/.wrangler/
