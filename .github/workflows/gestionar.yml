@@ -15,7 +15,7 @@ jobs:
     if: github.event.issue.user.login == github.repository_owner && (startsWith(github.event.issue.title, 'Añadir') || startsWith(github.event.issue.title, 'Quitar'))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: g
         env:
           ISSUE_TITLE: ${{ github.event.issue.title }}
