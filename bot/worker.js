@@ -18,6 +18,7 @@
 const UA = 'Mozilla/5.0 (compatible; MonitorWebsBot/1.0; +https://github.com/wpdesigndev/monitor-webs)';
 const TZ = 'America/Havana';
 const SLOTS = 5;          // cada web se comprueba una vez cada SLOTS minutos
+const BUTTONS = ['📋 Mis webs', '➕ Añadir web', '🔄 Comprobar ahora'];
 const MAX_PER_RUN = 30;   // límite de comprobaciones por pasada (el plan gratis permite 50 peticiones por ejecución)
 
 export default {
@@ -137,8 +138,8 @@ async function runChecks(env, now) {
     const { results: subs } = await env.DB.prepare('SELECT chat_id, name FROM subs WHERE site_id = ?1').bind(site.id).all();
     for (const sub of subs) {
       const msg = r.ok
-        ? `✅ <b>${esc(sub.name)}</b> vuelve a funcionar\n${esc(site.url)}\nEstuvo caída ${dur(ts - prevSince)} (desde ${fmt(prevSince)}).`
-        : `🔴 <b>${esc(sub.name)}</b> está caída\n${esc(site.url)}\nMotivo: ${esc(r.detail)}\nDesde ${fmt(ts)} (hora de Cuba). Te aviso cuando vuelva.`;
+        ? `✅ ${siteLabel(sub.name, site.url)}\nvuelve a funcionar. Estuvo caída ${dur(ts - prevSince)} (desde ${fmt(prevSince)}).`
+        : `🔴 ${siteLabel(sub.name, site.url)}\nestá caída desde ${fmt(ts)} (hora de Cuba).\nMotivo: ${esc(r.detail)}\nTe aviso cuando vuelva.`;
       await send(env, sub.chat_id, msg);
     }
   }
@@ -155,6 +156,12 @@ async function handleUpdate(update, env) {
   const msg = (m.text || '').trim();
   if (!allowed(env, m.from?.id)) return send(env, chat, 'Este bot es privado.');
   await env.DB.prepare('INSERT OR IGNORE INTO users (chat_id, first_seen) VALUES (?1, ?2)').bind(chat, now()).run();
+
+  // Esperando el nombre nuevo de una web (tras tocar ✏️)
+  const waiting = await env.DB.prepare('SELECT waiting FROM users WHERE chat_id = ?1').bind(chat).first('waiting');
+  if (waiting && waiting.startsWith('ren:') && msg && !msg.startsWith('/') && !BUTTONS.includes(msg)) {
+    return renameSite(env, chat, +waiting.slice(4), msg);
+  }
 
   const cmd = msg.split(/\s+/)[0].toLowerCase().replace(/@.*$/, '');
   const arg = msg.slice(cmd.length).trim();
@@ -188,7 +195,7 @@ async function handleCallback(q, env) {
     if (!row) return;
     return tg(env, 'editMessageText', {
       chat_id: chat, message_id: q.message.message_id, parse_mode: 'HTML',
-      text: `¿Dejo de vigilar <b>${esc(row.name)}</b>?\n${esc(row.url)}`,
+      text: `¿Dejo de vigilar ${siteLabel(row.name, row.url)}?`,
       reply_markup: { inline_keyboard: [[{ text: '🗑 Sí, quitarla', callback_data: `del2:${id}` }, { text: 'No', callback_data: 'list:0' }]] },
     });
   }
@@ -198,6 +205,13 @@ async function handleCallback(q, env) {
     await env.DB.prepare('DELETE FROM sites WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM subs WHERE site_id = ?1)').bind(+id).run();
     await tg(env, 'answerCallbackQuery', { callback_query_id: q.id, text: row ? `Quitada: ${row.name}` : 'Ya no estaba' });
     return listSites(env, chat, q.message.message_id);
+  }
+  if (action === 'ren') {
+    const row = await env.DB.prepare('SELECT subs.name, sites.url FROM subs JOIN sites ON sites.id = subs.site_id WHERE chat_id = ?1 AND site_id = ?2').bind(chat, +id).first();
+    await tg(env, 'answerCallbackQuery', { callback_query_id: q.id });
+    if (!row) return;
+    await setWaiting(env, chat, `ren:${+id}`);
+    return send(env, chat, `✏️ Escribe el nombre para <b>${esc(row.name)}</b>\n${esc(row.url)}\n\n(o /cancelar)`, { force_reply: true, input_field_placeholder: 'Nombre de la web' });
   }
   if (action === 'list') { await tg(env, 'answerCallbackQuery', { callback_query_id: q.id }); return listSites(env, chat, q.message.message_id); }
   if (action === 'check') { await tg(env, 'answerCallbackQuery', { callback_query_id: q.id, text: 'Comprobando…' }); return checkNow(env, chat); }
@@ -209,7 +223,7 @@ async function help(env, chat, welcome) {
   return send(env, chat,
     (welcome ? '👋 <b>Hola.</b> Vigilo tus webs y te aviso aquí cuando se caen y cuando vuelven.\n\n' : '') +
     '• <b>Añadir una web:</b> envíame su dirección (por ejemplo <code>midominio.com</code>). Puedes poner un nombre detrás: <code>midominio.com Mi tienda</code>\n' +
-    '• <b>Ver tus webs y quitar alguna:</b> 📋 Mis webs (o /webs)\n' +
+    '• <b>Ver tus webs, ponerles nombre (✏️) o quitarlas (🗑):</b> 📋 Mis webs (o /webs)\n' +
     '• <b>Comprobar ahora:</b> 🔄 Comprobar ahora (o /comprobar)\n\n' +
     `Las compruebo cada 5 minutos. Si una no responde en 3 intentos seguidos, te aviso 🔴, y cuando vuelve, ✅ con el tiempo que estuvo caída. Solo tú ves tus webs. Máximo ${max} webs.
 
@@ -237,10 +251,29 @@ async function addSite(env, chat, input) {
     await env.DB.prepare('UPDATE sites SET up = ?1, since = ?2, last_check = ?2, last_ms = ?3, last_error = ?4 WHERE id = ?5')
       .bind(r.ok ? 1 : 0, now(), r.ms, r.ok ? null : r.detail, site.id).run();
   }
+  const named = rest.length > 0;
   return send(env, chat,
-    `✅ Añadida <b>${esc(name)}</b>\n${esc(url)}\n\n` +
+    `✅ Añadida ${siteLabel(name, url)}\n\n` +
     (r.ok ? `Ahora mismo funciona (${r.ms} ms). Te aviso si se cae.` : `⚠️ Ahora mismo no responde (${esc(r.detail)}). Te aviso cuando funcione.`),
-    mainKeyboard());
+    named ? mainKeyboard() : { inline_keyboard: [[{ text: '✏️ Ponerle nombre', callback_data: `ren:${site.id}` }]] });
+}
+
+async function renameSite(env, chat, siteId, input) {
+  const name = input.replace(/\s+/g, ' ').trim().slice(0, 60);
+  await setWaiting(env, chat, null);
+  const row = await env.DB.prepare('SELECT sites.url FROM subs JOIN sites ON sites.id = subs.site_id WHERE chat_id = ?1 AND site_id = ?2').bind(chat, siteId).first();
+  if (!row || !name) return send(env, chat, 'No encontré esa web en tu lista.', mainKeyboard());
+  await env.DB.prepare('UPDATE subs SET name = ?1 WHERE chat_id = ?2 AND site_id = ?3').bind(name, chat, siteId).run();
+  await send(env, chat, `✏️ Listo, ahora se llama <b>${esc(name)}</b>.`, mainKeyboard());
+  return listSites(env, chat);
+}
+
+/** Nombre en negrita y, si es distinto de la dirección, la dirección debajo (sin repetirla si no tiene nombre propio). */
+function siteLabel(name, url) {
+  let host = url;
+  try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (_) {}
+  const plain = [host, url, url.replace(/\/$/, ''), url.replace(/^https?:\/\//, '').replace(/\/$/, '')].includes(name);
+  return plain ? `<b>${esc(name)}</b>` : `<b>${esc(name)}</b>\n<code>${esc(url)}</code>`;
 }
 
 async function listSites(env, chat, editId) {
@@ -254,11 +287,14 @@ async function listSites(env, chat, editId) {
   } else {
     const down = results.filter(s => !s.up).length;
     body = (down ? `🔴 <b>${down === 1 ? '1 web caída' : down + ' webs caídas'}</b>` : '🟢 <b>Todas tus webs funcionan</b>') + '\n\n' +
-      results.map(s => `${s.up ? '🟢' : '🔴'} <b>${esc(s.name)}</b>\n<code>${esc(s.url)}</code>\n` +
+      results.map(s => `${s.up ? '🟢' : '🔴'} ${siteLabel(s.name, s.url)}\n` +
         (s.last_check ? (s.up ? `${s.last_ms != null ? s.last_ms + ' ms · ' : ''}funciona desde ${fmt(s.since)}` : `caída desde ${fmt(s.since)} · ${esc(s.last_error || '')}`) : 'pendiente de la primera comprobación')
       ).join('\n\n');
     kb = { inline_keyboard: [
-      ...results.map(s => [{ text: `🗑 Quitar ${s.name}`.slice(0, 60), callback_data: `del:${s.id}` }]),
+      ...results.map(s => [
+        { text: `✏️ ${s.name}`.slice(0, 40), callback_data: `ren:${s.id}` },
+        { text: '🗑 Quitar', callback_data: `del:${s.id}` },
+      ]),
       [{ text: '🔄 Comprobar ahora', callback_data: 'check:0' }],
     ] };
   }

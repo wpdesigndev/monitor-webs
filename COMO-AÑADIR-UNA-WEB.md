@@ -15,7 +15,10 @@ También puedes pulsar el botón **➕ Añadir web** y luego enviar la direcció
 
 - Pulsa **📋 Mis webs** (o escribe `/webs`): sale cada web con 🟢 si funciona o 🔴 si está caída, el tiempo de respuesta
   y desde cuándo está así.
-- Debajo hay un botón **🗑 Quitar …** por cada web; el bot pregunta si estás seguro antes de quitarla.
+- Debajo, por cada web, hay dos botones:
+  - **✏️ Nombre**: el bot te pide el nombre nuevo; escríbelo y listo (o `/cancelar`).
+  - **🗑 Quitar**: el bot pregunta si estás seguro antes de quitarla.
+- Si añades una web sin nombre, el bot te ofrece el botón **✏️ Ponerle nombre** en ese momento.
 
 ## Comprobar ahora
 
