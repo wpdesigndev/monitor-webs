@@ -1,0 +1,10 @@
+name: Quitar web
+description: Deja de vigilar una web (solo funciona si la abre el dueño del repo)
+title: "Quitar web"
+body:
+  - type: input
+    attributes:
+      label: Dirección de la web
+      placeholder: https://midominio.com/
+    validations:
+      required: true

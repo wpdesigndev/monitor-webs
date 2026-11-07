@@ -1,0 +1,54 @@
+name: Monitor de webs
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # cada 5 minutos (GitHub a veces lo retrasa unos minutos)
+  workflow_dispatch:
+    inputs:
+      test_mail:
+        description: "Enviar un correo de prueba"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: [sites.json]     # al añadir o quitar una web se comprueba enseguida
+permissions:
+  contents: write
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Traer los datos guardados (rama «datos»)
+        run: |
+          mkdir -p datos
+          if git fetch --depth=1 origin datos 2>/dev/null; then git --work-tree=datos checkout FETCH_HEAD -- . ; git reset -q; fi
+      - name: Comprobar las webs
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          TEST_MAIL: ${{ inputs.test_mail && '1' || '0' }}
+          STATUS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          DATA_DIR: datos
+        run: python3 monitor.py
+      - name: Guardar los datos (un solo commit, sin llenar el historial)
+        run: |
+          cd datos
+          git init -q -b datos
+          git config user.name "monitor-webs"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "Datos del monitor"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" datos
+      - name: Latido mensual (GitHub apaga los cron de repos sin actividad en 60 días)
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%d%H%M)" \< "010010" ]; then
+            date -u > latido.txt
+            git config user.name "monitor-webs"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add latido.txt && git commit -qm "Latido mensual" && git push -q
+          fi

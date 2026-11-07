@@ -1,0 +1,15 @@
+name: Añadir web
+description: Añade una web al monitor (solo funciona si la abre el dueño del repo)
+title: "Añadir web"
+body:
+  - type: input
+    attributes:
+      label: Dirección de la web
+      placeholder: https://midominio.com/
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Nombre
+      description: Cómo se llamará en los correos y en la página de estado
+      placeholder: Mi web

@@ -1,0 +1,37 @@
+name: Añadir o quitar web
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+  actions: write
+concurrency:
+  group: gestionar
+  cancel-in-progress: false
+jobs:
+  gestionar:
+    # Solo el dueño del repo puede cambiar la lista (el repo es público)
+    if: github.event.issue.user.login == github.repository_owner && (startsWith(github.event.issue.title, 'Añadir') || startsWith(github.event.issue.title, 'Quitar'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: g
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: python3 gestionar.py
+      - if: steps.g.outputs.changed == 'true'
+        run: |
+          git config user.name "monitor-webs"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "${{ github.event.issue.title }} (#${{ github.event.issue.number }})"
+          git push -q
+          # el push hecho con GITHUB_TOKEN no dispara otros workflows: lanzar la comprobación a mano
+          gh workflow run monitor.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: gh issue close ${{ github.event.issue.number }} --comment "$RESULT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT: ${{ steps.g.outputs.result }}
